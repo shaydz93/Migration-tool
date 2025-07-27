@@ -1,0 +1,2 @@
+# This file ensures the llama directory is tracked by git
+# The llama directory will contain AI model files for generating migration reports
