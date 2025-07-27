@@ -10,7 +10,7 @@ Please manually add the following files to this directory:
 - **ChromeSetup.exe** - Windows offline Chrome installer
 - **python-installer.exe** - Python offline installer for Windows
 
-### Mac Installers  
+### Mac Installers
 - **pmac.pkg** - Python offline installer for Mac
 - **googlechrome.dmg** - Chrome offline installer for Mac
 
