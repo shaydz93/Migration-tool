@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <title>Universal Migration Toolkit Guide</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f4f6f9;
+            color: #2c3e50;
+            margin: 0;
+            padding: 30px;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 900px;
+            margin: auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2980b9;
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        h1::before {
+            content: "🚀 ";
+        }
+        h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 8px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #16a085;
+        }
+        p, li {
+            font-size: 1.1em;
+        }
+        code {
+            background: #f1f1f1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95em;
+        }
+        pre {
+            background: #f1f1f1;
+            padding: 15px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 0.95em;
+            border: 1px solid #ddd;
+        }
+        ul, ol {
+            margin: 15px 0;
+        }
+        li {
+            margin: 8px 0;
+        }
+        .feature-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .feature-table th, .feature-table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        .feature-table th {
+            background: #3498db;
+            color: white;
+        }
+        .feature-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Universal Migration Toolkit</h1>
+        <p style="text-align: center; font-size: 1.2em; color: #34495e;">
+            A fully offline, cross-platform tool for migrating user data from old computers to new ones — with AI-powered reporting and enterprise features.
+        </p>
+
+        <h2>✅ Supported Platforms</h2>
+        <ul>
+            <li><strong>macOS</strong> (10.15+)</li>
+            <li><strong>Windows</strong> (10/11)</li>
+        </ul>
+        <p><strong>Linux is not supported.</strong></p>
+
+        <h2>📦 What It Does</h2>
+        <ul>
+            <li>📁 Migrate user files, settings, and apps</li>
+            <li>🔐 Preserve Wi-Fi, Chrome, Active Directory, and network settings</li>
+            <li>🖼️ Retain wallpaper and preferences</li>
+            <li>💾 Create bootable disk images (optional)</li>
+            <li>🧠 Generate <strong>AI-powered migration reports</strong></li>
+            <li>🔍 Verify data integrity before restore</li>
+        </ul>
+        <p>All without internet — runs from a USB drive.</p>
+
+        <h2>🛠️ How It Works</h2>
+
+        <h3>1. On the Old Computer (Export Data)</h3>
+        <pre>./start.sh        # macOS
+start.bat       # Windows</pre>
+        <ul>
+            <li>Select user folder</li>
+            <li>Choose what to migrate</li>
+            <li>Click <strong>"Start Migration"</strong></li>
+            <li>Data saved to <code>/Data/</code></li>
+        </ul>
+
+        <h3>2. On the New Computer (Restore Data)</h3>
+        <pre>./restore.sh      # macOS
+restore.bat     # Windows</pre>
+        <ul>
+            <li>Auto-detects migration data</li>
+            <li>Restores files, settings, Chrome, and more</li>
+            <li>Joins Active Directory (if selected)</li>
+            <li>Generates a professional HTML report</li>
+        </ul>
+
+        <h2>🧩 Key Features</h2>
+        <table class="feature-table">
+            <tr><th>Feature</th><th>Supported</th></tr>
+            <tr><td>User Files & Folders</td><td>✅</td></tr>
+            <tr><td>AppData / Preferences</td><td>✅</td></tr>
+            <tr><td>Registry / Plist Settings</td><td>✅</td></tr>
+            <tr><td>Wallpaper Retention</td><td>✅</td></tr>
+            <tr><td>Wi-Fi Profiles</td><td>✅</td></tr>
+            <tr><td>Mail Data (Outlook, Mail.app)</td><td>✅</td></tr>
+            <tr><td>Installed Apps List</td><td>✅</td></tr>
+            <tr><td>Network Settings (Hosts, Drives)</td><td>✅</td></tr>
+            <tr><td>Active Directory Join</td><td>✅</td></tr>
+            <tr><td>Google Chrome Installation</td><td>✅</td></tr>
+            <tr><td>Disk Imaging (Bootable Backup)</td><td>✅</td></tr>
+            <tr><td>Integrity Verification (SHA-256)</td><td>✅</td></tr>
+            <tr><td>AI-Powered Report Summary</td><td>✅</td></tr>
+            <tr><td>Works Offline</td><td>✅</td></tr>
+            <tr><td>No Admin Rights Required (Export)</td><td>✅</td></tr>
+            <tr><td>Silent Install (Python, Chrome)</td><td>✅</td></tr>
+        </table>
+
+        <h2>📁 Folder Structure</h2>
+        <pre>MigrationTool/
+├── start.sh          # Launch export on macOS
+├── start.bat         # Launch export on Windows
+├── restore.sh        # Launch restore on macOS
+├── restore.bat       # Launch restore on Windows
+├── migrate.py        # Export tool (GUI)
+├── restore.py        # Import tool (GUI)
+├── Assets/
+│   ├── pmac.pkg      # Python 3.11 for macOS
+│   ├── python-installer.exe  # Python 3.11 for Windows
+│   ├── Chrome-Windows.exe
+│   ├── Chrome-Mac.dmg
+│   └── llama/
+│       ├── llama.exe     # LLM for Windows
+│       ├── llama-mac     # LLM for macOS
+│       └── model.gguf    # Small AI model (phi-2)
+├── Data/             # Exported user data
+├── Logs/             # Migration logs
+├── Reports/          # AI-generated HTML summaries
+└── README.md         # This guide</pre>
+
+        <h2>🚀 Getting Started</h2>
+        <ol>
+            <li><strong>Copy</strong> the <code>MigrationTool</code> folder to a USB drive</li>
+            <li>On the <strong>old computer</strong>, run:
+                <pre>start.sh    (macOS)
+start.bat   (Windows)</pre>
+            </li>
+            <li>Follow the GUI to <strong>export data</strong></li>
+            <li>Move USB to <strong>new computer</strong></li>
+            <li>Run:
+                <pre>restore.sh    (macOS)
+restore.bat   (Windows)</pre>
+            </li>
+            <li>Click <strong>"Start Restore"</strong> and wait</li>
+        </ol>
+        <p>✅ A report will be saved to <code>/Reports/</code></p>
+
+        <h2>🤖 AI-Powered Reporting</h2>
+        <p>After every migration, the toolkit generates a <strong>natural language summary</strong> using a <strong>local LLM</strong> (no internet needed).</p>
+        <blockquote>
+            "The migration was completed successfully. All user files, application settings, and Wi-Fi profiles were transferred. Google Chrome was installed, and the system is ready for use. No errors were detected."
+        </blockquote>
+        <p>Reports are saved as <strong>HTML files</strong> for easy viewing.</p>
+
+        <h2>🔐 Security & Trust</h2>
+        <ul>
+            <li>All data stays on the USB — <strong>no cloud, no internet</strong></li>
+            <li>SHA-256 integrity checks prevent corruption</li>
+            <li>Optional <strong>code signing</strong> available for enterprise deployment</li>
+        </ul>
+
+        <h2>📄 License</h2>
+        <p>This tool is for internal use only. Assets (like Chrome installers) are subject to their respective licenses.</p>
+
+        <div class="footer">
+            Developed with ❤️ for seamless, offline, enterprise-ready migrations.
+        </div>
+    </div>
+</body>
+</html>
