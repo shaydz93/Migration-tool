@@ -5,106 +5,46 @@ Supports: Windows, macOS
 Features: GUI, sync mode, network, Chrome, AD, imaging, reporting, AI summary
 """
 
-import os
-import sys
-import shutil
-import json
-import logging
 import subprocess
-import platform
 import plistlib
 import tempfile
 import urllib.request
-from datetime import datetime
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
-import hashlib
+from common import (
+    get_script_dir, setup_directories, setup_logging, create_log_function,
+    sync_copy, calculate_sha256, load_config, save_config, IS_WINDOWS, IS_MAC
+)
 
-# --- Detect OS ---
-OS = platform.system()
-IS_WINDOWS = OS == "Windows"
-IS_MAC = OS == "Darwin"
-
-# --- Paths ---
-try:
-    SCRIPT_DIR = Path(__file__).resolve().parent
-except:
-    SCRIPT_DIR = Path(os.getcwd())
-
-DATA_DIR = SCRIPT_DIR / "Data"
-LOGS_DIR = SCRIPT_DIR / "Logs"
+# --- Setup ---
+SCRIPT_DIR = get_script_dir()
+DATA_DIR, LOGS_DIR, REPORTS_DIR = setup_directories(SCRIPT_DIR)
 CONFIG_FILE = SCRIPT_DIR / "config.json"
-REPORTS_DIR = SCRIPT_DIR / "Reports"
+log_path = setup_logging(LOGS_DIR, "migration")
 
-LOGS_DIR.mkdir(exist_ok=True)
-REPORTS_DIR.mkdir(exist_ok=True)
-(DATA_DIR / "Windows").mkdir(exist_ok=True, parents=True)
-(DATA_DIR / "Mac").mkdir(exist_ok=True, parents=True)
-
-# --- Logging ---
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_path = LOGS_DIR / f"migration_{timestamp}.log"
-logging.basicConfig(filename=log_path, level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] %(message)s')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-logging.getLogger().addHandler(console)
-
-def log(msg, level="info"):
-    getattr(logging, level)(msg)
-    if text_widget:
-        text_widget.config(state="normal")
-        text_widget.insert(END, msg + "\n")
-        text_widget.see(END)
-        text_widget.config(state="disabled")
-        root.update_idletasks()
+# Initialize log function (will be updated when GUI is created)
+log = None
 
 # --- Config ---
-def load_config():
-    if CONFIG_FILE.exists():
-        try:
-            return json.load(open(CONFIG_FILE))
-        except Exception as e:
-            log(f"Config load failed: {e}", "warning")
-    return {"source": str(Path.home()), "target_platform": "Windows", "items": {}}
+def load_migration_config():
+    default_config = {"source": str(Path.home()), "target_platform": "Windows", "items": {}}
+    config = load_config(CONFIG_FILE, default_config)
+    if "source" not in config:
+        config["source"] = str(Path.home())
+    if "target_platform" not in config:
+        config["target_platform"] = "Windows"
+    if "items" not in config:
+        config["items"] = {}
+    return config
 
-def save_config():
+def save_migration_config():
     config["source"] = source_entry.get()
     config["target_platform"] = target_platform.get()
     config["items"] = {key: var.get() for key, var in items.items()}
-    try:
-        json.dump(config, open(CONFIG_FILE, 'w'), indent=2)
-    except Exception as e:
-        log(f"Config save failed: {e}", "error")
+    save_config(CONFIG_FILE, config, log)
 
-config = load_config()
-
-# --- Sync Copy ---
-def is_newer_or_different(src: Path, dest: Path) -> bool:
-    if not dest.exists():
-        return True
-    try:
-        src_stat = src.stat()
-        dest_stat = dest.stat()
-        return src_stat.st_mtime > dest_stat.st_mtime or src_stat.st_size != dest_stat.st_size
-    except:
-        return True
-
-def sync_copy(src: Path, dest: Path):
-    if not is_newer_or_different(src, dest):
-        return
-    log(f"Sync: {src.name}")
-    dest.parent.mkdir(exist_ok=True, parents=True)
-    try:
-        if src.is_dir():
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest, symlinks=True)
-        else:
-            shutil.copy2(src, dest)
-    except Exception as e:
-        log(f"Copy failed {src} -> {dest}: {e}", "error")
+config = load_migration_config()
 
 # --- AI Summary Generator ---
 def generate_ai_summary(log_text, is_export=True):
@@ -257,7 +197,7 @@ def export_files():
     for item in source.iterdir():
         if item.name in {'.', '..'} or item.name == 'System Volume Information':
             continue
-        sync_copy(item, target / item.name)
+        sync_copy(item, target / item.name, log)
     log("User files synced.")
 
 def export_appdata():
@@ -269,12 +209,12 @@ def export_appdata():
             src1 = Path(os.environ.get("APPDATA", ""))
             src2 = Path(os.environ.get("LOCALAPPDATA", ""))
             target = DATA_DIR / target_platform.get() / "AppData"
-            if src1.exists(): sync_copy(src1, target / "Roaming")
-            if src2.exists(): sync_copy(src2, target / "Local")
+            if src1.exists(): sync_copy(src1, target / "Roaming", log)
+            if src2.exists(): sync_copy(src2, target / "Local", log)
         elif IS_MAC:
             src = Path.home() / "Library" / "Preferences"
             if src.exists():
-                sync_copy(src, DATA_DIR / target_platform.get() / "Preferences")
+                sync_copy(src, DATA_DIR / target_platform.get() / "Preferences", log)
         log("AppData / Preferences saved.")
     except Exception as e:
         log(f"AppData backup failed: {e}", "error")
@@ -294,7 +234,7 @@ def export_registry():
             for plist in ["com.apple.finder.plist", "com.apple.systempreferences.plist"]:
                 src = Path.home() / "Library" / "Preferences" / plist
                 if src.exists():
-                    sync_copy(src, plist_dir / plist)
+                    sync_copy(src, plist_dir / plist, log)
         log("Settings exported.")
     except Exception as e:
         log(f"Registry export failed: {e}", "error")
@@ -349,11 +289,11 @@ def export_mail():
         if IS_WINDOWS:
             src = Path(os.environ["LOCALAPPDATA"]) / "Microsoft" / "Outlook"
             if src.exists():
-                sync_copy(src, DATA_DIR / target_platform.get() / "OutlookData")
+                sync_copy(src, DATA_DIR / target_platform.get() / "OutlookData", log)
         elif IS_MAC:
             src = Path.home() / "Library" / "Containers" / "com.apple.mail" / "Data"
             if src.exists():
-                sync_copy(src, DATA_DIR / target_platform.get() / "MailData")
+                sync_copy(src, DATA_DIR / target_platform.get() / "MailData", log)
         log("Mail data exported.")
     except Exception as e:
         log(f"Mail export failed: {e}", "error")
@@ -507,7 +447,7 @@ def calculate_sha256(file_path, chunk_size=1 << 20):
         return None
 
 def start_migration():
-    save_config()
+    save_migration_config()
     target = target_platform.get()
     data_dir = DATA_DIR / target if target != "Both" else DATA_DIR
     data_dir.mkdir(exist_ok=True, parents=True)
@@ -607,6 +547,9 @@ scrollbar.grid(row=0, column=1, sticky=NS)
 text_widget = Text(right_frame, yscrollcommand=scrollbar.set, state="disabled", font=("Courier", 9))
 text_widget.grid(row=0, column=0, sticky="nsew")
 scrollbar.config(command=text_widget.yview)
+
+# Initialize the log function now that GUI is created
+log = create_log_function(text_widget, root)
 
 # Expand
 left_frame.grid_rowconfigure(len(items)+10, weight=1)
