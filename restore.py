@@ -5,77 +5,37 @@ Restores data exported by migrate.py
 Features: GUI, sync, network, Chrome, AD, AI reporting
 """
 
-import os
-import sys
-import shutil
-import json
-import logging
 import subprocess
-import platform
 import tempfile
 import urllib.request
-from datetime import datetime
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
-import hashlib
+from common import (
+    get_script_dir, setup_directories, setup_logging, create_log_function,
+    sync_copy, calculate_sha256, load_config, save_config, IS_WINDOWS, IS_MAC
+)
 
-# --- Detect OS ---
-OS = platform.system()
-IS_WINDOWS = OS == "Windows"
-IS_MAC = OS == "Darwin"
-
-# --- Paths ---
-try:
-    SCRIPT_DIR = Path(__file__).resolve().parent
-except:
-    SCRIPT_DIR = Path(os.getcwd())
-
-DATA_DIR = SCRIPT_DIR / "Data"
-LOGS_DIR = SCRIPT_DIR / "Logs"
+# --- Setup ---
+SCRIPT_DIR = get_script_dir()
+DATA_DIR, LOGS_DIR, REPORTS_DIR = setup_directories(SCRIPT_DIR)
 CONFIG_FILE = SCRIPT_DIR / "restore_config.json"
-REPORTS_DIR = SCRIPT_DIR / "Reports"
+log_path = setup_logging(LOGS_DIR, "restore")
 
-LOGS_DIR.mkdir(exist_ok=True)
-REPORTS_DIR.mkdir(exist_ok=True)
-
-# --- Logging ---
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_path = LOGS_DIR / f"restore_{timestamp}.log"
-logging.basicConfig(filename=log_path, level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] %(message)s')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-logging.getLogger().addHandler(console)
-
-def log(msg, level="info"):
-    getattr(logging, level)(msg)
-    if text_widget:
-        text_widget.config(state="normal")
-        text_widget.insert(END, msg + "\n")
-        text_widget.see(END)
-        text_widget.config(state="disabled")
-        root.update_idletasks()
+# Initialize log function (will be updated when GUI is created)
+log = None
+config = load_restore_config()
+DATA_ROOT = None
 
 # --- Config ---
-def load_config():
-    if CONFIG_FILE.exists():
-        try:
-            return json.load(open(CONFIG_FILE))
-        except:
-            pass
-    return {"source_os": "", "items": {}}
+def load_restore_config():
+    default_config = {"source_os": "", "items": {}}
+    return load_config(CONFIG_FILE, default_config)
 
-def save_config():
+def save_restore_config():
     config["source_os"] = source_var.get()
     config["items"] = {key: var.get() for key, var in item_vars.items()}
-    try:
-        json.dump(config, open(CONFIG_FILE, 'w'), indent=2)
-    except Exception as e:
-        log(f"Config save failed: {e}", "error")
-
-config = load_config()
-DATA_ROOT = None
+    save_config(CONFIG_FILE, config, log)
 
 # --- Detect Source OS ---
 def detect_source():
@@ -88,43 +48,11 @@ def detect_source():
     return ""
 
 # --- Sync Copy ---
-def is_newer_or_different(src: Path, dest: Path) -> bool:
-    if not dest.exists():
-        return True
-    try:
-        src_stat = src.stat()
-        dest_stat = dest.stat()
-        return src_stat.st_mtime > dest_stat.st_mtime or src_stat.st_size != dest_stat.st_size
-    except:
-        return True
-
-def sync_copy(src: Path, dest: Path):
-    if not is_newer_or_different(src, dest):
-        return
-    log(f"Sync: {src.name}")
-    dest.parent.mkdir(exist_ok=True, parents=True)
-    try:
-        if src.is_dir():
-            if dest.exists():
-                shutil.rmtree(dest)
-            shutil.copytree(src, dest, symlinks=True)
-        else:
-            shutil.copy2(src, dest)
-    except Exception as e:
-        log(f"Copy failed {src} -> {dest}: {e}", "error")
+def sync_copy_wrapper(src: Path, dest: Path):
+    """Wrapper for sync_copy to maintain compatibility with existing code"""
+    sync_copy(src, dest, log)
 
 # --- Integrity Verification ---
-def calculate_sha256(file_path, chunk_size=1 << 20):
-    h = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            while chunk := f.read(chunk_size):
-                h.update(chunk)
-        return h.hexdigest()
-    except Exception as e:
-        log(f"Read error {file_path}: {e}", "error")
-        return None
-
 def verify_all_files():
     log("Starting pre-restore integrity check...")
     baseline_file = Path(DATA_ROOT) / "hashes.json"
@@ -340,7 +268,7 @@ def restore_files():
     for item in src.iterdir():
         if item.name in {'.', '..'}:
             continue
-        sync_copy(item, Path.home() / item.name)
+        sync_copy_wrapper(item, Path.home() / item.name)
     log("User files restored.")
 
 def restore_appdata():
@@ -353,14 +281,14 @@ def restore_appdata():
         if IS_WINDOWS and (src / "AppData").exists():
             roaming = src / "AppData" / "Roaming"
             local = src / "AppData" / "Local"
-            if roaming.exists(): sync_copy(roaming, Path(os.environ["APPDATA"]))
-            if local.exists(): sync_copy(local, Path(os.environ["LOCALAPPDATA"]))
+            if roaming.exists(): sync_copy_wrapper(roaming, Path(os.environ["APPDATA"]))
+            if local.exists(): sync_copy_wrapper(local, Path(os.environ["LOCALAPPDATA"]))
         elif IS_MAC and (src / "Preferences").exists():
             plist_src = src / "Preferences"
             plist_dest = home / "Library" / "Preferences"
             for f in plist_src.iterdir():
                 if f.is_file() and f.suffix == '.plist':
-                    sync_copy(f, plist_dest / f.name)
+                    sync_copy_wrapper(f, plist_dest / f.name)
         log("AppData / Preferences restored.")
     except Exception as e:
         log(f"AppData restore failed: {e}", "error")
@@ -378,7 +306,7 @@ def restore_settings():
             plist_dir = src / "PlistSettings"
             for f in plist_dir.glob("*.plist"):
                 dest = Path.home() / "Library" / "Preferences" / f.name
-                sync_copy(f, dest)
+                sync_copy_wrapper(f, dest)
         log("Settings restored.")
     except Exception as e:
         log(f"Settings restore failed: {e}", "error")
@@ -432,9 +360,9 @@ def restore_mail():
     try:
         src = Path(DATA_ROOT)
         if IS_WINDOWS and (src / "OutlookData").exists():
-            sync_copy(src / "OutlookData", Path(os.environ["LOCALAPPDATA"]) / "Microsoft" / "Outlook")
+            sync_copy_wrapper(src / "OutlookData", Path(os.environ["LOCALAPPDATA"]) / "Microsoft" / "Outlook")
         elif IS_MAC and (src / "MailData").exists():
-            sync_copy(src / "MailData", Path.home() / "Library" / "Containers" / "com.apple.mail" / "Data")
+            sync_copy_wrapper(src / "MailData", Path.home() / "Library" / "Containers" / "com.apple.mail" / "Data")
         log("Mail data restored.")
     except Exception as e:
         log(f"Mail restore failed: {e}", "error")
@@ -578,7 +506,7 @@ def join_domain():
 
 # --- Start Restore ---
 def start_restore():
-    save_config()
+    save_restore_config()
     global DATA_ROOT
     if not DATA_ROOT:
         DATA_ROOT = DATA_DIR / source_var.get()
@@ -695,6 +623,9 @@ scrollbar.grid(row=0, column=1, sticky=NS)
 text_widget = Text(right_frame, yscrollcommand=scrollbar.set, state="disabled", font=("Courier", 9))
 text_widget.grid(row=0, column=0, sticky="nsew")
 scrollbar.config(command=text_widget.yview)
+
+# Initialize the log function now that GUI is created
+log = create_log_function(text_widget, root)
 
 # Expand
 left_frame.grid_rowconfigure(len(item_vars)+10, weight=1)

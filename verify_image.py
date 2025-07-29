@@ -4,62 +4,19 @@ Disk Image Integrity Verifier
 Generates and verifies SHA-256 hashes for disk images
 """
 
-import os
-import sys
-import hashlib
-import logging
 import subprocess
-import platform
-from datetime import datetime
 from tkinter import *
 from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
+from common import get_script_dir, setup_directories, setup_logging, create_log_function, calculate_sha256
 
-# --- Detect OS ---
-OS = platform.system()
-IS_WINDOWS = OS == "Windows"
-IS_MAC = OS == "Darwin"
+# --- Setup ---
+SCRIPT_DIR = get_script_dir()
+DATA_DIR, LOGS_DIR, _ = setup_directories(SCRIPT_DIR)
+log_path = setup_logging(LOGS_DIR, "image_verify")
 
-# --- Paths ---
-try:
-    SCRIPT_DIR = Path(__file__).resolve().parent
-except:
-    SCRIPT_DIR = Path(os.getcwd())
-
-DATA_DIR = SCRIPT_DIR / "Data"
-LOGS_DIR = SCRIPT_DIR / "Logs"
-LOGS_DIR.mkdir(exist_ok=True)
-
-# --- Logging ---
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_path = LOGS_DIR / f"image_verify_{timestamp}.log"
-logging.basicConfig(filename=log_path, level=logging.INFO,
-                    format='%(asctime)s [%(levelname)s] %(message)s')
-console = logging.StreamHandler()
-console.setLevel(logging.INFO)
-logging.getLogger().addHandler(console)
-
-def log(msg, level="info"):
-    getattr(logging, level)(msg)
-    if text_widget:
-        text_widget.config(state="normal")
-        text_widget.insert(END, msg + "\n")
-        text_widget.see(END)
-        text_widget.config(state="disabled")
-        root.update_idletasks()
-
-# --- Hashing Function ---
-def calculate_sha256(file_path, chunk_size=1 << 20):
-    """Calculate SHA-256 hash of a file in chunks"""
-    h = hashlib.sha256()
-    try:
-        with open(file_path, "rb") as f:
-            while chunk := f.read(chunk_size):
-                h.update(chunk)
-        return h.hexdigest()
-    except Exception as e:
-        log(f"Read error: {e}", "error")
-        return None
+# Initialize log function (will be updated when GUI is created)
+log = None
 
 # --- Find Disk Images ---
 def find_disk_images():
@@ -125,6 +82,9 @@ log_frame = LabelFrame(root, text=" Verification Log ", padx=10, pady=10)
 log_frame.pack(pady=10, padx=20, fill=BOTH, expand=True)
 text_widget = Text(log_frame, height=10, state="disabled", font=("Courier", 9))
 text_widget.pack(fill=BOTH, expand=True)
+
+# Initialize the log function now that GUI is created
+log = create_log_function(text_widget, root)
 
 # --- Refresh List ---
 def refresh_images():
